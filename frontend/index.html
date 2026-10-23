@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPI Fraud Ops — Analyst Dashboard</title>
+  <meta name="description" content="Real-time analyst dashboard for the UPI Fraud Alert System. Live alerts, SHAP explanations, network graph, and case management." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d0d0d;
+      --surface:  #141414;
+      --raised:   #1c1c1c;
+      --border:   #2a2a2a;
+      --text:     #e8e8e4;
+      --muted:    #888880;
+      --accent:   #e8c84a;
+      --danger:   #d94f3b;
+      --safe:     #4db380;
+      --mono:     'IBM Plex Mono', monospace;
+      --sans:     'IBM Plex Sans', sans-serif;
+      --radius:   3px;
+      --gutter:   18px;
+    }
+    html, body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:13px; line-height:1.55; height:100%; overflow:hidden; }
+    #app { display:grid; grid-template-rows:48px 1fr; height:100vh; }
+
+    /* topbar */
+    #topbar { display:flex; align-items:center; justify-content:space-between; padding:0 var(--gutter); border-bottom:1px solid var(--border); background:var(--surface); }
+    .wordmark { font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; }
+    .wordmark span { color:var(--accent); }
+    nav { display:flex; gap:2px; }
+    .tab-btn { background:none; border:none; color:var(--muted); font-family:var(--sans); font-size:12px; padding:0 14px; height:48px; cursor:pointer; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; }
+    .tab-btn:hover { color:var(--text); }
+    .tab-btn.active { color:var(--text); border-bottom-color:var(--accent); }
+    .hdr-right { display:flex; gap:10px; align-items:center; }
+    .status-dot { width:7px; height:7px; border-radius:50%; background:var(--muted); display:inline-block; transition:background .3s; }
+    .status-dot.live { background:var(--safe); box-shadow:0 0 6px var(--safe); }
+
+    /* main three-column */
+    #main { display:grid; grid-template-columns:320px 1fr 292px; overflow:hidden; }
+    .panel { border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+    .panel:last-child { border-right:none; }
+    .panel-header { padding:10px var(--gutter); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .panel-title { font-size:9px; font-family:var(--mono); letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); }
+    .panel-body { flex:1; overflow-y:auto; overflow-x:hidden; }
+    .panel-body::-webkit-scrollbar { width:3px; }
+    .panel-body::-webkit-scrollbar-thumb { background:var(--border); }
+
+    /* metric strip */
+    #metric-strip { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--border); flex-shrink:0; }
+    .mc { padding:12px var(--gutter); border-right:1px solid var(--border); }
+    .mc:last-child { border-right:none; }
+    .mc-label { font-size:9px; font-family:var(--mono); letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+    .mc-val { font-family:var(--mono); font-size:20px; font-weight:500; color:var(--text); line-height:1; }
+    .mc-val.green { color:var(--safe); }
+    .mc-val.amber { color:var(--accent); }
+    .mc-sub { font-size:10px; color:var(--muted); margin-top:2px; font-family:var(--mono); }
+
+    /* stream bar */
+    #stream-bar { padding:8px var(--gutter); border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:center; flex-shrink:0; flex-wrap:wrap; }
+
+    /* alert feed */
+    .alert-row { padding:10px var(--gutter); border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; animation:fadeIn .18s ease; }
+    .alert-row:hover { background:var(--raised); }
+    .alert-row.sel { background:var(--raised); border-left:2px solid var(--accent); padding-left:calc(var(--gutter) - 2px); }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+    .alert-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+    .badge { font-family:var(--mono); font-size:9px; letter-spacing:0.08em; text-transform:uppercase; padding:2px 6px; border-radius:var(--radius); }
+    .badge.HOLD  { background:rgba(217,79,59,.15);  color:var(--danger); border:1px solid rgba(217,79,59,.3); }
+    .badge.WARN  { background:rgba(232,200,74,.12); color:var(--accent); border:1px solid rgba(232,200,74,.3); }
+    .badge.ALLOW { background:rgba(77,179,128,.1);  color:var(--safe);   border:1px solid rgba(77,179,128,.25); }
+    .alert-vpa { font-family:var(--mono); font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .alert-bottom { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:3px; }
+    .alert-amount { font-family:var(--mono); font-size:13px; color:var(--text); font-weight:500; }
+    .rbar-wrap { height:2px; background:var(--border); border-radius:1px; margin-top:6px; overflow:hidden; }
+    .rbar { height:100%; border-radius:1px; transition:width .4s ease; }
+
+    /* centre */
+    #centre-panel { display:flex; flex-direction:column; overflow:hidden; }
+    .inner-view { display:none; flex:1; flex-direction:column; overflow:hidden; }
+    .inner-view.active { display:flex; }
+
+    /* detail */
+    #detail-empty { flex:1; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; font-family:var(--mono); letter-spacing:0.06em; }
+    #detail-content { display:none; flex-direction:column; overflow-y:auto; }
+    .detail-section { padding:14px var(--gutter); border-bottom:1px solid var(--border); }
+    .ds-title { font-size:9px; font-family:var(--mono); letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+    .kv-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; }
+    .kv-key { font-size:10px; color:var(--muted); font-family:var(--mono); margin-bottom:1px; }
+    .kv-val { font-size:12px; color:var(--text); font-family:var(--mono); }
+
+    /* shap */
+    .shap-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+    .shap-lbl { font-family:var(--mono); font-size:10px; color:var(--muted); width:170px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+    .shap-track { flex:1; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+    .shap-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .5s; }
+    .shap-num { font-family:var(--mono); font-size:10px; color:var(--muted); width:38px; text-align:right; flex-shrink:0; }
+
+    /* graph */
+    #cy-wrap { flex:1; position:relative; overflow:hidden; }
+    #cy { width:100%; height:100%; background:var(--bg); }
+    #graph-ctrl { padding:8px var(--gutter); border-top:1px solid var(--border); display:flex; gap:8px; align-items:center; flex-shrink:0; }
+
+    /* cases table */
+    .table-wrap { flex:1; overflow-y:auto; }
+    table { width:100%; border-collapse:collapse; font-size:11px; }
+    thead th { padding:9px var(--gutter); text-align:left; font-family:var(--mono); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; }
+    tbody tr { border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
+    tbody tr:hover { background:var(--raised); }
+    tbody td { padding:8px var(--gutter); color:var(--text); font-family:var(--mono); }
+    tbody td.muted { color:var(--muted); }
+    .cs-badge { font-size:9px; padding:2px 5px; border-radius:var(--radius); font-family:var(--mono); letter-spacing:0.06em; text-transform:uppercase; }
+    .cs-badge.OPEN             { background:rgba(232,200,74,.12); color:var(--accent); }
+    .cs-badge.IN_INVESTIGATION { background:rgba(107,163,255,.12); color:#6ba3ff; }
+    .cs-badge.CONFIRMED_FRAUD  { background:rgba(217,79,59,.12);   color:var(--danger); }
+    .cs-badge.FALSE_POSITIVE   { background:rgba(77,179,128,.1);   color:var(--safe); }
+
+    /* right panel */
+    .warn-box { margin:10px var(--gutter); padding:10px; border-radius:var(--radius); border-left:3px solid var(--accent); background:rgba(232,200,74,.06); }
+    .warn-box.hot { border-left-color:var(--danger); background:rgba(217,79,59,.06); }
+    .wb-lang { font-size:9px; font-family:var(--mono); letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+    .wb-text { font-size:12px; color:var(--text); line-height:1.6; }
+    .slider-section { padding:10px var(--gutter); border-top:1px solid var(--border); }
+    .slider-row { margin-bottom:12px; }
+    .slider-hdr { display:flex; justify-content:space-between; margin-bottom:4px; }
+    .slider-name { font-size:10px; color:var(--muted); font-family:var(--mono); }
+    .slider-val { font-family:var(--mono); font-size:10px; color:var(--accent); }
+    input[type=range] { -webkit-appearance:none; width:100%; height:3px; background:var(--border); border-radius:2px; outline:none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:var(--accent); cursor:pointer; transition:transform .15s; }
+    input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.25); }
+    #latency-bar { padding:8px var(--gutter); border-top:1px solid var(--border); display:flex; gap:18px; flex-shrink:0; }
+    .lat-s { display:flex; flex-direction:column; gap:1px; }
+    .lat-lbl { font-size:9px; font-family:var(--mono); color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
+    .lat-val { font-size:12px; font-family:var(--mono); color:var(--safe); }
+
+    /* buttons */
+    .btn { background:none; border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:11px; padding:5px 12px; border-radius:var(--radius); cursor:pointer; transition:background .15s,border-color .15s; letter-spacing:0.04em; }
+    .btn:hover { background:var(--raised); border-color:var(--muted); }
+    .btn.prime { background:var(--accent); color:#000; border-color:var(--accent); font-weight:600; }
+    .btn.prime:hover { background:#f0d260; }
+
+    /* inputs */
+    select, textarea, input[type=text] { background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:11px; padding:5px 8px; border-radius:var(--radius); outline:none; width:100%; }
+    select:focus, textarea:focus, input[type=text]:focus { border-color:var(--accent); }
+    textarea { resize:vertical; min-height:54px; }
+
+    /* graph legend */
+    .g-legend { display:flex; gap:12px; flex-wrap:wrap; }
+    .g-li { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--muted); font-family:var(--mono); }
+    .g-dot { width:8px; height:8px; border-radius:50%; }
+
+    /* toast */
+    #toast { position:fixed; bottom:18px; right:18px; background:var(--raised); border:1px solid var(--border); border-left:3px solid var(--accent); padding:8px 14px; border-radius:var(--radius); font-family:var(--mono); font-size:11px; color:var(--text); opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s; pointer-events:none; z-index:999; }
+    #toast.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header id="topbar">
+    <div class="wordmark">UPI Fraud Ops &nbsp;<span>// Analyst Dashboard</span></div>
+    <nav>
+      <button class="tab-btn active" id="tab-live"    onclick="showSection('live')">Live Feed</button>
+      <button class="tab-btn"        id="tab-cases"   onclick="showSection('cases')">Case Queue</button>
+      <button class="tab-btn"        id="tab-network" onclick="showSection('network')">Network Graph</button>
+    </nav>
+    <div class="hdr-right">
+      <span class="status-dot" id="ws-dot"></span>
+      <span id="ws-lbl" style="font-family:var(--mono);font-size:10px;color:var(--muted)">OFFLINE</span>
+      <a href="/phone" target="_blank" class="btn" style="text-decoration:none;font-size:10px;padding:4px 10px;">Phone Sim ↗</a>
+    </div>
+  </header>
+
+  <div id="main">
+
+    <!-- ─── LEFT: feed ─── -->
+    <div class="panel">
+
+      <div id="metric-strip">
+        <div class="mc"><div class="mc-label">Scored</div><div class="mc-val" id="m-scored">0</div><div class="mc-sub" id="m-tps">— TPS</div></div>
+        <div class="mc"><div class="mc-label">Alerts</div><div class="mc-val amber" id="m-alerts">0</div><div class="mc-sub" id="m-apm">— /min</div></div>
+        <div class="mc"><div class="mc-label">Prevented</div><div class="mc-val green" id="m-prev">₹0</div><div class="mc-sub">fraud value</div></div>
+        <div class="mc"><div class="mc-label">p99 ms</div><div class="mc-val" id="m-p99">—</div><div class="mc-sub">latency</div></div>
+      </div>
+
+      <div id="stream-bar">
+        <button class="btn prime" onclick="startStream()">▶ Start</button>
+        <button class="btn" onclick="stopStream()">■ Stop</button>
+        <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">TPS:</span>
+        <input type="range" id="tps-sl" min="1" max="50" value="15" style="width:70px;"
+               oninput="document.getElementById('tps-v').textContent=this.value" />
+        <span id="tps-v" style="font-family:var(--mono);font-size:10px;color:var(--muted)">15</span>
+      </div>
+
+      <div class="panel-header">
+        <span class="panel-title">Alert Feed</span>
+        <button class="btn" onclick="clearFeed()">Clear</button>
+      </div>
+
+      <div class="panel-body" id="alert-feed">
+        <div style="padding:40px 18px;color:var(--muted);font-family:var(--mono);font-size:11px;">Waiting for stream…</div>
+      </div>
+    </div>
+
+    <!-- ─── CENTRE ─── -->
+    <div class="panel" id="centre-panel">
+
+      <!-- LIVE detail -->
+      <div class="inner-view active" id="section-live" style="overflow:hidden;flex:1;">
+        <div class="panel-header"><span class="panel-title">Transaction Detail</span></div>
+        <div id="detail-empty">← Select an alert to inspect</div>
+        <div id="detail-content">
+          <div class="detail-section">
+            <div class="ds-title">Transaction</div>
+            <div class="kv-grid" id="d-txn"></div>
+          </div>
+          <div class="detail-section">
+            <div class="ds-title">Decision</div>
+            <div class="kv-grid" id="d-dec"></div>
+          </div>
+          <div class="detail-section">
+            <div class="ds-title">Top Risk Signals (SHAP)</div>
+            <div id="d-shap"></div>
+          </div>
+          <div class="detail-section">
+            <div class="ds-title">Case Action</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <select id="c-status">
+                <option value="OPEN">OPEN</option>
+                <option value="IN_INVESTIGATION">IN INVESTIGATION</option>
+                <option value="CONFIRMED_FRAUD">CONFIRMED FRAUD</option>
+                <option value="FALSE_POSITIVE">FALSE POSITIVE</option>
+              </select>
+              <textarea id="c-notes" placeholder="Analyst notes…"></textarea>
+              <button class="btn prime" onclick="submitCase()">Save Case</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CASES table -->
+      <div class="inner-view" id="section-cases">
+        <div class="panel-header">
+          <span class="panel-title">Case Queue</span>
+          <button class="btn" onclick="loadCases()">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Case</th><th>VPA (sender)</th><th>Amount</th><th>Action</th>
+                <th>Risk</th><th>Typology</th><th>Status</th><th>Analyst</th>
+              </tr>
+            </thead>
+            <tbody id="cases-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NETWORK graph -->
+      <div class="inner-view" id="section-network">
+        <div class="panel-header">
+          <span class="panel-title">Transaction Network</span>
+          <div class="g-legend">
+            <div class="g-li"><div class="g-dot" style="background:#d94f3b"></div>Flagged</div>
+            <div class="g-li"><div class="g-dot" style="background:#e8c84a"></div>Mule</div>
+            <div class="g-li"><div class="g-dot" style="background:#4db380"></div>Merchant</div>
+            <div class="g-li"><div class="g-dot" style="background:#6ba3ff"></div>User</div>
+          </div>
+        </div>
+        <div id="cy-wrap"><div id="cy"></div></div>
+        <div id="graph-ctrl">
+          <input type="text" id="vpa-inp" placeholder="VPA to focus…" style="width:200px;" />
+          <button class="btn" onclick="loadGraph()">All Flagged</button>
+          <button class="btn" onclick="loadGraph(document.getElementById('vpa-inp').value)">Focus VPA</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── RIGHT ─── -->
+    <div class="panel" id="right-panel" style="overflow-y:auto;">
+
+      <div class="panel-header">
+        <span class="panel-title">Warning Preview</span>
+      </div>
+
+      <div class="warn-box" id="wb-en">
+        <div class="wb-lang">EN</div>
+        <div class="wb-text" id="wb-en-t">Select a WARN or HOLD alert to preview the user-facing message.</div>
+      </div>
+      <div class="warn-box" id="wb-ta">
+        <div class="wb-lang">Tamil · தமிழ்</div>
+        <div class="wb-text" id="wb-ta-t" style="font-size:13px;">—</div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding:10px var(--gutter) 0;">
+        <span class="panel-title">Decision Thresholds</span>
+      </div>
+
+      <div class="slider-section panel-body">
+        <div class="slider-row">
+          <div class="slider-hdr"><span class="slider-name">min_prob_warn</span><span class="slider-val" id="sv-warn">0.30</span></div>
+          <input type="range" id="s-warn" min="0.05" max="0.80" step="0.01" value="0.30"
+                 oninput="document.getElementById('sv-warn').textContent=parseFloat(this.value).toFixed(2)" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-hdr"><span class="slider-name">min_prob_hold</span><span class="slider-val" id="sv-hold">0.70</span></div>
+          <input type="range" id="s-hold" min="0.20" max="0.99" step="0.01" value="0.70"
+                 oninput="document.getElementById('sv-hold').textContent=parseFloat(this.value).toFixed(2)" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-hdr"><span class="slider-name">warn_effectiveness</span><span class="slider-val" id="sv-weff">0.60</span></div>
+          <input type="range" id="s-weff" min="0.10" max="1.00" step="0.01" value="0.60"
+                 oninput="document.getElementById('sv-weff').textContent=parseFloat(this.value).toFixed(2)" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-hdr"><span class="slider-name">senior_multiplier</span><span class="slider-val" id="sv-sen">1.5</span></div>
+          <input type="range" id="s-sen" min="1.0" max="3.0" step="0.1" value="1.5"
+                 oninput="document.getElementById('sv-sen').textContent=parseFloat(this.value).toFixed(1)" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn prime" onclick="pushConfig()" style="flex:1;">Apply</button>
+          <button class="btn" onclick="loadConfig()" style="flex:1;">Reset</button>
+        </div>
+      </div>
+
+      <div id="latency-bar">
+        <div class="lat-s"><span class="lat-lbl">p50</span><span class="lat-val" id="lp50">—</span></div>
+        <div class="lat-s"><span class="lat-lbl">p95</span><span class="lat-val" id="lp95">—</span></div>
+        <div class="lat-s"><span class="lat-lbl">p99</span><span class="lat-val" id="lp99">—</span></div>
+        <div class="lat-s" style="margin-left:auto;"><span class="lat-lbl">count</span><span class="lat-val" id="lcount" style="color:var(--muted)">0</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ── config ── */
+var API  = window.location.origin;
+var WSURL = API.replace(/^http/, 'ws') + '/ws/alerts';
+
+/* ── state ── */
+var feed = [];
+var selAlert = null;
+var selCase  = null;
+var cy = null;
+
+/* ── tabs ── */
+function showSection(name) {
+  var all = ['live','cases','network'];
+  for (var i = 0; i < all.length; i++) {
+    var s = all[i];
+    var el  = document.getElementById('section-' + s);
+    var btn = document.getElementById('tab-' + s);
+    if (s === name) {
+      el.style.display = 'flex';
+      el.classList.add('active');
+      if (btn) { btn.classList.add('active'); }
+    } else {
+      el.style.display = 'none';
+      el.classList.remove('active');
+      if (btn) { btn.classList.remove('active'); }
+    }
+  }
+  if (name === 'cases')   { loadCases(); }
+  if (name === 'network') { initCy(); loadGraph(); }
+}
+
+/* ── websocket ── */
+var ws = null;
+function connectWS() {
+  ws = new WebSocket(WSURL);
+  ws.onopen = function() {
+    setDot(true);
+    toast('WebSocket connected');
+    setInterval(function() {
+      if (ws && ws.readyState === 1) { ws.send('ping'); }
+    }, 20000);
+  };
+  ws.onmessage = function(e) {
+    var d;
+    try { d = JSON.parse(e.data); } catch(x) { return; }
+    if (d && d.action && d.action !== 'pong') { ingestAlert(d); }
+  };
+  ws.onclose = function() { setDot(false); setTimeout(connectWS, 3000); };
+  ws.onerror = function() { ws.close(); };
+}
+function setDot(live) {
+  var dot = document.getElementById('ws-dot');
+  var lbl = document.getElementById('ws-lbl');
+  if (live) {
+    dot.classList.add('live');
+    lbl.textContent  = 'LIVE';
+    lbl.style.color  = 'var(--safe)';
+  } else {
+    dot.classList.remove('live');
+    lbl.textContent  = 'OFFLINE';
+    lbl.style.color  = 'var(--muted)';
+  }
+}
+
+/* ── feed ── */
+function ingestAlert(d) {
+  feed.unshift(d);
+  if (feed.length > 120) { feed.pop(); }
+  renderFeed();
+}
+function renderFeed() {
+  var el = document.getElementById('alert-feed');
+  if (feed.length === 0) {
+    el.innerHTML = '<div style="padding:40px 18px;color:var(--muted);font-family:var(--mono);font-size:11px;">Waiting for stream…</div>';
+    return;
+  }
+  var html = '';
+  var lim  = Math.min(feed.length, 80);
+  for (var i = 0; i < lim; i++) {
+    var item  = feed[i];
+    var score = Math.round(item.risk_score * 100);
+    var ts    = item.timestamp ? item.timestamp.slice(11,19) : '';
+    var isSel = (selAlert && selAlert.txn_id === item.txn_id);
+    var barC  = item.action === 'HOLD' ? 'var(--danger)' :
+                item.action === 'WARN' ? 'var(--accent)' : 'var(--safe)';
+    html += '<div class="alert-row' + (isSel ? ' sel' : '') + '" onclick="selectAlert(' + i + ')">';
+    html += '<div class="alert-top"><span class="badge ' + item.action + '">' + item.action + '</span>';
+    html += '<span class="alert-amount">&#8377;' + fmtN(item.amount) + '</span></div>';
+    html += '<div class="alert-vpa">' + esc(item.sender_vpa) + ' &rarr; ' + esc(item.receiver_vpa) + '</div>';
+    html += '<div class="alert-bottom"><span>' + ts + '</span><span>Risk ' + score + '%</span></div>';
+    html += '<div class="rbar-wrap"><div class="rbar" style="width:' + score + '%;background:' + barC + '"></div></div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+function selectAlert(idx) {
+  selAlert = feed[idx];
+  selCase  = null;
+  renderFeed();
+  renderDetail(selAlert);
+}
+function clearFeed() {
+  feed = [];
+  selAlert = null;
+  renderFeed();
+  document.getElementById('detail-empty').style.display  = 'flex';
+  document.getElementById('detail-content').style.display = 'none';
+}
+
+/* ── detail ── */
+function renderDetail(d) {
+  document.getElementById('detail-empty').style.display   = 'none';
+  document.getElementById('detail-content').style.display = 'flex';
+
+  document.getElementById('d-txn').innerHTML =
+    kv('TXN ID',  d.txn_id) +
+    kv('Time',    d.timestamp ? d.timestamp.slice(0,19).replace('T',' ') : '—') +
+    kv('Sender',  d.sender_vpa) +
+    kv('Receiver',d.receiver_vpa) +
+    kv('Amount',  '&#8377;' + fmtN(d.amount)) +
+    kv('Senior',  d.is_senior ? 'Yes' : 'No') +
+    kv('Collect', d.is_collect_request ? 'Yes' : 'No');
+
+  var ac = d.action === 'HOLD' ? 'var(--danger)' :
+           d.action === 'WARN' ? 'var(--accent)' : 'var(--safe)';
+  document.getElementById('d-dec').innerHTML =
+    kv('Action',   '<span style="color:' + ac + ';font-weight:600">' + d.action + '</span>') +
+    kv('Risk',     (d.risk_score*100).toFixed(1)+'%') +
+    kv('Typology', esc(d.fraud_typology_guess || '—')) +
+    kv('Latency',  d.latency_ms ? d.latency_ms.toFixed(2)+' ms' : '—');
+
+  /* SHAP */
+  var shapHtml = '';
+  var reasons  = d.top_reasons || [];
+  if (reasons.length === 0) {
+    shapHtml = '<div style="color:var(--muted);font-size:11px;font-family:var(--mono)">No SHAP signals (ALLOW)</div>';
+  } else {
+    var maxV = reasons[0].importance;
+    for (var j = 0; j < reasons.length; j++) {
+      var r   = reasons[j];
+      var pct = maxV > 0 ? Math.round(r.importance / maxV * 100) : 0;
+      shapHtml += '<div class="shap-row">';
+      shapHtml += '<span class="shap-lbl">' + esc(r.feature) + '</span>';
+      shapHtml += '<div class="shap-track"><div class="shap-fill" style="width:' + pct + '%"></div></div>';
+      shapHtml += '<span class="shap-num">+' + r.importance.toFixed(3) + '</span>';
+      shapHtml += '</div>';
+    }
+  }
+  document.getElementById('d-shap').innerHTML = shapHtml;
+
+  /* warning preview */
+  document.getElementById('wb-en-t').textContent = d.en_warning || '—';
+  document.getElementById('wb-ta-t').textContent = d.ta_warning || '—';
+  if (d.action === 'HOLD') {
+    document.getElementById('wb-en').classList.add('hot');
+    document.getElementById('wb-ta').classList.add('hot');
+  } else {
+    document.getElementById('wb-en').classList.remove('hot');
+    document.getElementById('wb-ta').classList.remove('hot');
+  }
+}
+function kv(label, val) {
+  return '<div class="kv-item"><div class="kv-key">' + label + '</div><div class="kv-val">' + val + '</div></div>';
+}
+
+/* ── cases ── */
+function loadCases() {
+  fetch(API + '/api/cases')
+    .then(function(r) { return r.json(); })
+    .then(renderCases)
+    .catch(function(e) { toast('Cases error: ' + e.message); });
+}
+function renderCases(cases) {
+  var html = '';
+  for (var i = 0; i < cases.length; i++) {
+    var c = cases[i];
+    html += '<tr onclick="pickCase(\'' + esc(c.case_id) + '\')">';
+    html += '<td>' + esc(c.case_id) + '</td>';
+    html += '<td class="muted">' + esc(c.sender_vpa || '—') + '</td>';
+    html += '<td>&#8377;' + fmtN(c.amount) + '</td>';
+    html += '<td><span class="badge ' + c.action + '">' + c.action + '</span></td>';
+    html += '<td>' + (c.risk_score*100).toFixed(0) + '%</td>';
+    html += '<td class="muted">' + esc(c.typology_guess || '—') + '</td>';
+    html += '<td><span class="cs-badge ' + c.status + '">' + c.status.replace(/_/g,' ') + '</span></td>';
+    html += '<td class="muted">' + esc(c.assigned_to || '—') + '</td>';
+    html += '</tr>';
+  }
+  document.getElementById('cases-tbody').innerHTML = html ||
+    '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">No cases yet</td></tr>';
+}
+function pickCase(caseId) {
+  selCase = caseId;
+  showSection('live');
+  toast('Case ' + caseId + ' selected — update status above');
+}
+function submitCase() {
+  var cid  = selCase;
+  if (!cid && selAlert) {
+    fetch(API + '/api/cases')
+      .then(function(r) { return r.json(); })
+      .then(function(cases) {
+        var match = null;
+        for (var i = 0; i < cases.length; i++) {
+          if (cases[i].txn_id === selAlert.txn_id) { match = cases[i]; break; }
+        }
+        if (match) { selCase = match.case_id; doUpdate(); }
+        else { toast('No open case for this transaction'); }
+      });
+  } else if (cid) {
+    doUpdate();
+  } else {
+    toast('Select an alert or case first');
+  }
+}
+function doUpdate() {
+  fetch(API + '/api/cases/' + selCase, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      status:       document.getElementById('c-status').value,
+      analyst_notes:document.getElementById('c-notes').value,
+      assigned_to:  'Analyst-1'
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) { toast(res.success ? 'Case ' + selCase + ' saved' : 'Save failed'); })
+  .catch(function(e) { toast('Error: ' + e.message); });
+}
+
+/* ── network ── */
+function initCy() {
+  if (cy) { return; }
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    style: [
+      { selector:'node',
+        style:{'background-color':'#6ba3ff','label':'data(label)','color':'#e8e8e4',
+               'font-family':'IBM Plex Mono, monospace','font-size':'9px',
+               'text-valign':'bottom','text-margin-y':'4px','width':'18px','height':'18px'} },
+      { selector:'node[type="flagged"]',
+        style:{'background-color':'#d94f3b','width':'26px','height':'26px'} },
+      { selector:'node[type="mule"]',
+        style:{'background-color':'#e8c84a','width':'20px','height':'20px'} },
+      { selector:'node[type="merchant"]',
+        style:{'background-color':'#4db380'} },
+      { selector:'edge',
+        style:{'width':1,'line-color':'#2a2a2a','target-arrow-color':'#2a2a2a',
+               'target-arrow-shape':'triangle','curve-style':'bezier','arrow-scale':0.7} },
+      { selector:':selected', style:{'border-width':2,'border-color':'#e8c84a'} }
+    ],
+    layout:{name:'cose', animate:false},
+    userZoomingEnabled:true, userPanningEnabled:true
+  });
+  cy.on('tap','node', function(evt) {
+    document.getElementById('vpa-inp').value = evt.target.id();
+  });
+}
+function loadGraph(vpa) {
+  var url = API + '/api/network/subgraph';
+  if (vpa && vpa.trim() !== '') { url += '?vpa=' + encodeURIComponent(vpa.trim()); }
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!cy) { return; }
+      cy.elements().remove();
+      cy.add(data.elements);
+      cy.layout({name:'cose', animate:true, animationDuration:400, padding:30}).run();
+    })
+    .catch(function(e) { toast('Graph error: ' + e.message); });
+}
+
+/* ── config ── */
+function loadConfig() {
+  fetch(API + '/api/config')
+    .then(function(r) { return r.json(); })
+    .then(function(cfg) {
+      setSl('s-warn', 'sv-warn', cfg.min_prob_warn,                function(v){return v.toFixed(2);});
+      setSl('s-hold', 'sv-hold', cfg.min_prob_hold,                function(v){return v.toFixed(2);});
+      setSl('s-weff', 'sv-weff', cfg.warn_effectiveness,           function(v){return v.toFixed(2);});
+      setSl('s-sen',  'sv-sen',  cfg.senior_protection_multiplier, function(v){return v.toFixed(1);});
+    })
+    .catch(function() {});
+}
+function setSl(sid, vid, val, fmt) {
+  var s = document.getElementById(sid);
+  var v = document.getElementById(vid);
+  if (s && val !== undefined) { s.value = val; v.textContent = fmt(val); }
+}
+function pushConfig() {
+  fetch(API + '/api/config', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      cost_warn_friction:             0.02,
+      cost_hold_friction:             0.08,
+      warn_effectiveness:             parseFloat(document.getElementById('s-weff').value),
+      min_prob_warn:                  parseFloat(document.getElementById('s-warn').value),
+      min_prob_hold:                  parseFloat(document.getElementById('s-hold').value),
+      senior_protection_multiplier:   parseFloat(document.getElementById('s-sen').value)
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) { toast(res.success ? 'Config applied' : 'Config failed'); })
+  .catch(function(e) { toast('Error: ' + e.message); });
+}
+
+/* ── stream ── */
+function startStream() {
+  var tps = parseInt(document.getElementById('tps-sl').value);
+  fetch(API + '/api/stream/start?speed_tps=' + tps, {method:'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(res) { toast('Stream started @ ' + res.tps + ' TPS'); })
+    .catch(function(e) { toast('Start error: ' + e.message); });
+}
+function stopStream() {
+  fetch(API + '/api/stream/stop', {method:'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function() { toast('Stream stopped'); })
+    .catch(function(e) { toast('Error: ' + e.message); });
+}
+
+/* ── metrics poll ── */
+function pollMetrics() {
+  fetch(API + '/api/metrics')
+    .then(function(r) { return r.json(); })
+    .then(function(m) {
+      document.getElementById('m-scored').textContent = fmtN(m.total_scored);
+      document.getElementById('m-alerts').textContent = fmtN(m.total_alerts);
+      document.getElementById('m-prev').textContent   = '&#8377;' + shortN(m.fraud_prevented_inr);
+      document.getElementById('m-p99').textContent    = m.p99_latency_ms.toFixed(1);
+      document.getElementById('m-apm').textContent    = m.alerts_per_minute.toFixed(1) + ' /min';
+      document.getElementById('m-tps').textContent    = m.stream_speed_tps + ' TPS';
+      document.getElementById('lp50').textContent     = m.p50_latency_ms + ' ms';
+      document.getElementById('lp95').textContent     = m.p95_latency_ms + ' ms';
+      document.getElementById('lp99').textContent     = m.p99_latency_ms + ' ms';
+      document.getElementById('lcount').textContent   = fmtN(m.total_scored);
+    })
+    .catch(function() {});
+}
+
+/* ── utils ── */
+function fmtN(n) {
+  if (n === undefined || n === null) { return '0'; }
+  return Math.round(n).toLocaleString('en-IN');
+}
+function shortN(n) {
+  if (!n) { return '0'; }
+  if (n >= 1e7)  { return (n/1e7).toFixed(1) + ' Cr'; }
+  if (n >= 1e5)  { return (n/1e5).toFixed(1) + ' L'; }
+  if (n >= 1000) { return (n/1000).toFixed(1) + 'K'; }
+  return Math.round(n).toString();
+}
+function esc(s) {
+  if (!s) { return ''; }
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+var toastTimer = null;
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (toastTimer) { clearTimeout(toastTimer); }
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2800);
+}
+
+/* ── boot ── */
+connectWS();
+loadConfig();
+setInterval(pollMetrics, 2000);
+</script>
+</body>
+</html>

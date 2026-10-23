@@ -1,0 +1,173 @@
+{
+  "ablation": [
+    {
+      "Configuration": "Behavioural Only",
+      "Features": 13,
+      "PR-AUC (All)": "0.0869",
+      "ROC-AUC (All)": "0.8891",
+      "Precision": "0.1654",
+      "Recall": "0.2540",
+      "FPR": "0.00378",
+      "Seen PR-AUC": "0.0943",
+      "Unseen PR-AUC": "0.0049",
+      "Mule Chain Recall": "41.7%",
+      "QR Swap Recall": "0.0%"
+    },
+    {
+      "Configuration": "Behavioural + Context",
+      "Features": 26,
+      "PR-AUC (All)": "0.8261",
+      "ROC-AUC (All)": "0.9306",
+      "Precision": "0.9454",
+      "Recall": "0.7846",
+      "FPR": "0.00013",
+      "Seen PR-AUC": "0.9485",
+      "Unseen PR-AUC": "0.3529",
+      "Mule Chain Recall": "89.6%",
+      "QR Swap Recall": "0.0%"
+    },
+    {
+      "Configuration": "Full (+ Graph Features)",
+      "Features": 41,
+      "PR-AUC (All)": "1.0000",
+      "ROC-AUC (All)": "1.0000",
+      "Precision": "1.0000",
+      "Recall": "1.0000",
+      "FPR": "0.00000",
+      "Seen PR-AUC": "1.0000",
+      "Unseen PR-AUC": "1.0000",
+      "Mule Chain Recall": "100.0%",
+      "QR Swap Recall": "100.0%"
+    }
+  ],
+  "mule_metrics": {
+    "total_mule_accounts": 150,
+    "mules_active_in_test": 145,
+    "mules_flagged": 145,
+    "fraction_mules_flagged": 1.0,
+    "average_cluster_purity": 0.3886177513193382,
+    "median_time_to_detect_seconds": 0.0,
+    "mean_time_to_detect_seconds": 0.0,
+    "first_hop_detection_rate": 1.0
+  },
+  "per_typology_full": [
+    {
+      "typology": "impersonation_vishing",
+      "seen_in_training": true,
+      "total": 67,
+      "detected": 67,
+      "recall": 1.0,
+      "avg_score": 1.0
+    },
+    {
+      "typology": "remote_access",
+      "seen_in_training": true,
+      "total": 64,
+      "detected": 64,
+      "recall": 1.0,
+      "avg_score": 1.0
+    },
+    {
+      "typology": "account_takeover",
+      "seen_in_training": false,
+      "total": 41,
+      "detected": 41,
+      "recall": 1.0,
+      "avg_score": 1.0
+    },
+    {
+      "typology": "qr_swap",
+      "seen_in_training": false,
+      "total": 60,
+      "detected": 60,
+      "recall": 1.0,
+      "avg_score": 1.0
+    },
+    {
+      "typology": "mule_chain",
+      "seen_in_training": true,
+      "total": 48,
+      "detected": 48,
+      "recall": 1.0,
+      "avg_score": 1.0
+    },
+    {
+      "typology": "fake_collect_request",
+      "seen_in_training": true,
+      "total": 104,
+      "detected": 104,
+      "recall": 1.0,
+      "avg_score": 1.0
+    },
+    {
+      "typology": "rapid_burst",
+      "seen_in_training": true,
+      "total": 57,
+      "detected": 57,
+      "recall": 1.0,
+      "avg_score": 1.0
+    }
+  ],
+  "top_features": [
+    {
+      "feature": "receiver_account_age_days",
+      "importance": 98570233.04437256
+    },
+    {
+      "feature": "receiver_in_degree",
+      "importance": 6357056.00100708
+    },
+    {
+      "feature": "amount",
+      "importance": 1701833.1212997437
+    },
+    {
+      "feature": "receiver_network_age_days",
+      "importance": 586039.0
+    },
+    {
+      "feature": "receiver_hop_to_flagged",
+      "importance": 511005.02251297235
+    },
+    {
+      "feature": "payee_first_seen_days",
+      "importance": 155429.0
+    },
+    {
+      "feature": "receiver_out_degree",
+      "importance": 14561.2001953125
+    },
+    {
+      "feature": "amount_ratio_to_max",
+      "importance": 14276.849609404802
+    },
+    {
+      "feature": "sender_in_degree",
+      "importance": 139.02425971627235
+    },
+    {
+      "feature": "sender_account_age_days",
+      "importance": 70.7072982788086
+    },
+    {
+      "feature": "user_txn_count",
+      "importance": 7.521763695061677e-15
+    },
+    {
+      "feature": "hour_deviation",
+      "importance": 1.7763600157738027e-15
+    },
+    {
+      "feature": "amount_z_score",
+      "importance": 1.8041139204845942e-16
+    },
+    {
+      "feature": "is_new_payee",
+      "importance": 0.0
+    },
+    {
+      "feature": "velocity_1min",
+      "importance": 0.0
+    }
+  ]
+}

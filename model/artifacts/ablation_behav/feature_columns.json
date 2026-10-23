@@ -1,0 +1,1 @@
+["amount_z_score", "amount_ratio_to_max", "hour_deviation", "is_new_payee", "payee_first_seen_days", "is_new_device", "is_new_city", "velocity_1min", "velocity_1hr", "velocity_24hr", "new_payee_count_1hr", "amount", "user_txn_count"]

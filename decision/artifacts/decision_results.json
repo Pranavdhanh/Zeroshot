@@ -1,0 +1,129 @@
+{
+  "baseline_stats": {
+    "total_fraud_amount": 9672391.0,
+    "prevented_fraud_amount": 9495804.1,
+    "fraud_amount_prevented_pct": 98.17432008280062,
+    "genuine_friction_count": 0,
+    "total_friction_cost": 0.0,
+    "net_value_saved": 9495804.1
+  },
+  "friction_curve": [
+    {
+      "friction_multiplier": 0.1,
+      "warn_friction_cost": 5.0,
+      "hold_friction_cost": 60.0,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 0.152,
+      "warn_friction_cost": 7.6,
+      "hold_friction_cost": 91.2,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 0.231,
+      "warn_friction_cost": 11.6,
+      "hold_friction_cost": 138.6,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 0.351,
+      "warn_friction_cost": 17.6,
+      "hold_friction_cost": 210.7,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 0.534,
+      "warn_friction_cost": 26.7,
+      "hold_friction_cost": 320.2,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 0.811,
+      "warn_friction_cost": 40.6,
+      "hold_friction_cost": 486.7,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 1.233,
+      "warn_friction_cost": 61.6,
+      "hold_friction_cost": 739.7,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 1.874,
+      "warn_friction_cost": 93.7,
+      "hold_friction_cost": 1124.3,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 2.848,
+      "warn_friction_cost": 142.4,
+      "hold_friction_cost": 1708.8,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 4.329,
+      "warn_friction_cost": 216.4,
+      "hold_friction_cost": 2597.3,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 6.579,
+      "warn_friction_cost": 329.0,
+      "hold_friction_cost": 3947.6,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    },
+    {
+      "friction_multiplier": 10.0,
+      "warn_friction_cost": 500.0,
+      "hold_friction_cost": 6000.0,
+      "prevented_fraud_amount": 9672391.0,
+      "genuine_friction_count": 0,
+      "net_value_saved": 9672391.0,
+      "fraud_recall_pct": 100.0
+    }
+  ],
+  "optimal_point": {
+    "friction_multiplier": 0.1,
+    "warn_friction_cost": 5.0,
+    "hold_friction_cost": 60.0,
+    "prevented_fraud_amount": 9672391.0,
+    "genuine_friction_count": 0,
+    "net_value_saved": 9672391.0,
+    "fraud_recall_pct": 100.0
+  }
+}

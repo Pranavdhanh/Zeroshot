@@ -1,0 +1,9 @@
+{
+  "cost_warn_friction": 50.0,
+  "cost_hold_friction": 600.0,
+  "warn_effectiveness": 0.7,
+  "min_prob_warn": 0.03,
+  "min_prob_hold": 0.25,
+  "high_value_escalation_amount": 50000.0,
+  "senior_protection_multiplier": 1.5
+}
