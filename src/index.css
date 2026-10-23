@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #0B0F19;
+    color: #F1F5F9;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* React Flow custom styling */
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+/* Card Glow & Glass effects */
+.fintech-card {
+  background: #111A2E;
+  border: 1px solid #1C2942;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+}
+
+.fintech-card-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.fintech-card-hover:hover {
+  border-color: #2D3F63;
+  transform: translateY(-1px);
+}
+
+.cyan-glow {
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.15);
+}
+
+.red-glow {
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.2);
+}
+
+.amber-glow {
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.2);
+}
+
+.green-glow {
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+}
